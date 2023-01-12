@@ -69,6 +69,13 @@ class Mazzo():
     def convert_carta_to_key(self, carta):
         return f'{carta.seme[0]}{carta.valore}'
 
+    def assegna_punti(self, dict_punti):
+        for carta in self.carte.values():
+            if carta.valore in list(dict_punti.keys()):
+                carta.punti = dict_punti[carta.valore]
+            else:
+                carta.punti = carta.valore
+
     def __repr__(self) -> str:
         return f"Mazzo con {len(self.carte)} carte"
 
@@ -80,6 +87,9 @@ class Giocatore():
 
     def pesca_carta(self, mazzo):
         self.carte_in_mano.append(mazzo.pesca_carta())
+
+    def pesca_carta_fondo(self, carta_fondo):
+        self.carte_in_mano.append(carta_fondo)
 
     def usa_carta(self, posizione_carta):
         return self.carte_in_mano.pop(posizione_carta)
