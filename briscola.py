@@ -25,7 +25,12 @@ class GiocatoreBriscola(Giocatore):
 class Briscola():
     def __init__(self) -> None:
         self.mazzo = Mazzo()
-        self.dict_punti = {1: 11, 3: 10, 10: 4, 9: 3, 8: 2}
+        self.mazzo.assegna_punti(dict_punti = {
+            1: 11, 
+            3: 10, 
+            10: 4, 
+            9: 3, 
+            8: 2})
 
         self.init_giocatori()
         while input("Volete iniziare? (s/n) ").lower()[0] != 's':
@@ -34,8 +39,13 @@ class Briscola():
         self.pesca_briscola()
         self.chi_inizia()
 
-        # while len(self.mazzo.carte) > 35:
-        self.turno()
+        while len(self.mazzo.carte) > 0 or len(self.giocatori[self.giocatore_iniziale].carte_in_mano) > 0:
+            self.turno()
+            self.check_ultimo_turno()
+        
+        self.conta_punti_giocatori()
+        print("Fine partita!")
+        print(f"Complimenti {self.vincitore}")
 
     def init_giocatori(self):
         self.giocatori = {}
@@ -72,44 +82,96 @@ class Briscola():
         else:
             raise ValueError("Non so come interpretare questo valore. Inserisci un numero intero tra 1 e 4.")    
 
-        print("Ora inserite i vostri nomi")
+        print("Ora inserite i vostri nomi\n")
         for i, giocatore in enumerate(range(self.numero_giocatori), start=1):
             nome = input(f"Giocatore {i}: ")
             self.giocatori[nome] = GiocatoreBriscola(nome=nome)
 
-        print(f"Benvenuti: {[nome for nome in self.giocatori.keys()]}")
+        print(f"\nBenvenuti: {[nome for nome in self.giocatori.keys()]}")
 
     def init_distribuisci_carte(self):
+        print("\nInizio a distribuire le carte\n")
         for i in range(3):
-            for giocatore in self.giocatori.keys():
-                self.giocatori[giocatore].pesca_carta(self.mazzo)
+            self.giocatori_pescano()
 
     def pesca_briscola(self):
         self.carta_fondo = self.mazzo.pesca_carta()
         self.seme_briscola = self.carta_fondo.seme
         print(f"La carta sul fondo e' un {self.carta_fondo}")
-        print(f"Il seme di briscola quindi e' {self.seme_briscola}")
+        print(f"Il seme di briscola quindi e' {self.seme_briscola}\n")
 
     def check_ultimo_turno(self):
-        if len(self.mazzo.carte) == self.numero_giocatori:
+        if len(self.mazzo.carte) == self.numero_giocatori-1:
             print("Attenzione giocatori, questo e' l'ultimo giro!")
 
     def turno(self):
+        print(len(self.mazzo.carte))
         ordine_giocatori = self.set_ordine_giocatori()
         [print(self.giocatori[giocatore].nome, self.giocatori[giocatore].carte_in_mano) 
                for giocatore in ordine_giocatori]
-        carte_giocate = {}
+        print("")
+        
+        carte_giocate = []
         for i, giocatore in enumerate(ordine_giocatori):
+            mossa_sbagliata = True
             opzioni = list(range(len(self.giocatori[giocatore].carte_in_mano)))
-            carta_id = int(input(f"{self.giocatori[giocatore]}: scegli una delle tue carte (opzioni: {opzioni})"))
-            carte_giocate[i] = self.giocatori[giocatore].usa_carta(carta_id)
+
+            while mossa_sbagliata:
+                carta_id = input(f"{self.giocatori[giocatore]}: scegli una delle tue carte (opzioni: {opzioni}) ")
+                try:
+                    carta_id = int(carta_id)
+                    if carta_id in opzioni:
+                        mossa_sbagliata = False
+                    else:
+                        print(f"Plesae metti solo una delle seguenti opzioni: {opzioni}")
+                except:
+                    print("C'e' qualche errore nell'input")
+
+            carte_giocate.append(self.giocatori[giocatore].usa_carta(carta_id))
             print(carte_giocate[i])
+
+        id_giocatore_vincente = self.chi_prende_la_mano(carte_giocate)
+        giocatore_vincente = ordine_giocatori[id_giocatore_vincente]
+        print(f"Prende la mano {giocatore_vincente}\n")
+        self.giocatore_iniziale = giocatore_vincente
+
+        self.giocatori[giocatore_vincente].aggiungi_carte_vinte(carte_giocate)
+        ordine_giocatori = self.set_ordine_giocatori()
+        if len(self.mazzo.carte) > 0:
+            self.giocatori_pescano(ordine_giocatori)
+
+    def giocatori_pescano(self, ordine_giocatori=None):
+        if ordine_giocatori is None:
+            ordine_giocatori = self.giocatori.keys()
+        for giocatore in ordine_giocatori:
+            if len(self.mazzo.carte) == 0:
+                self.giocatori[giocatore].pesca_carta_fondo(self.carta_fondo) 
+            else:
+                self.giocatori[giocatore].pesca_carta(self.mazzo)
+
+    def chi_prende_la_mano(self, carte_giocate):
+        carta_vincente = carte_giocate[0]
+        id_giocatore_vincente = 0
+        for i, carta in enumerate(carte_giocate[1:], start=1):
+            if carta_vincente.seme == self.seme_briscola:
+                if carta.seme == self.seme_briscola and carta.punti > carta_vincente.punti:
+                    carta_vincente = carta
+                    id_giocatore_vincente = i
+            elif carta.seme == self.seme_briscola:
+                carta_vincente = carta
+                id_giocatore_vincente = i
+            elif carta.seme != self.seme_briscola and carta_vincente.seme == carta.seme:
+                if carta.punti > carta_vincente.punti:
+                    carta_vincente = carta
+                    id_giocatore_vincente = i
+
+        return id_giocatore_vincente
 
     def chi_inizia(self):
         giocatori = list(self.giocatori.keys())
         random.shuffle(giocatori)
         self.giocatore_iniziale = giocatori[0]
-        print(f"Inizia {self.giocatore_iniziale}!")
+        print(f"\nInizia {self.giocatore_iniziale}!")
 
     def set_ordine_giocatori(self):
         list_giocatori = list(self.giocatori.keys())
@@ -119,10 +181,16 @@ class Briscola():
         ordine_giocatori = list_giocatori[id_inizio:] + list_giocatori[:id_inizio]
         return ordine_giocatori
 
+    def conta_punti_giocatori(self):
+        punti_giocatori = {}
+        for nome, giocatore in self.giocatori.items():
+            punti_giocatori[nome] = giocatore.conta_punti()
+        print(punti_giocatori)
+        self.vincitore = max(punti_giocatori, key=punti_giocatori.get)
+
     def __repr__(self) -> str:
         return f"Gioco di Briscola con {self.numero_giocatori} giocatori"
 
 
 if __name__ == '__main__':
     briscola = Briscola()
-    [print(giocatore.nome, giocatore.carte_in_mano) for giocatore in briscola.giocatori.values()]
