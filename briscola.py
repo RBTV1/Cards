@@ -1,5 +1,6 @@
 import random
 from classes import Giocatore, Mazzo, Carta, si_o_no
+from collections import defaultdict
 
 class GiocatoreBriscola(Giocatore):
     def __init__(self, nome) -> None:
@@ -83,9 +84,18 @@ class Briscola():
             raise ValueError("Non so come interpretare questo valore. Inserisci un numero intero tra 1 e 4.")    
 
         print("Ora inserite i vostri nomi\n")
+        if self.numero_giocatori == 4:
+            print("Comincia la squadra 1\n")
+            self.squadre = defaultdict(list)
+            squadra_id = 1
+
         for i, giocatore in enumerate(range(self.numero_giocatori), start=1):
+            if self.numero_giocatori == 4 and i == 3:
+                print("Ora la squadra 2\n")
+                squadra_id = 2
             nome = input(f"Giocatore {i}: ")
             self.giocatori[nome] = GiocatoreBriscola(nome=nome)
+            self.squadre[f'squadra{squadra_id}'].append(nome)
 
         print(f"\nBenvenuti: {[nome for nome in self.giocatori.keys()]}")
 
@@ -105,7 +115,7 @@ class Briscola():
             print("Attenzione giocatori, questo e' l'ultimo giro!")
 
     def turno(self):
-        print(len(self.mazzo.carte))
+        # print(len(self.mazzo.carte))
         ordine_giocatori = self.set_ordine_giocatori()
         [print(self.giocatori[giocatore].nome, self.giocatori[giocatore].carte_in_mano) 
                for giocatore in ordine_giocatori]
@@ -183,10 +193,23 @@ class Briscola():
 
     def conta_punti_giocatori(self):
         punti_giocatori = {}
-        for nome, giocatore in self.giocatori.items():
-            punti_giocatori[nome] = giocatore.conta_punti()
+
+        if self.numero_giocatori == 4:
+            for squadra_id, squadra in self.squadre.items():
+                punti_squadra = 0
+                for giocatore_id in squadra:
+                    punti_squadra += self.giocatori[giocatore_id].conta_punti()
+                punti_giocatori[squadra_id] = punti_squadra
+        else:
+            for nome, giocatore in self.giocatori.items():
+                punti_giocatori[nome] = giocatore.conta_punti()
+
         print(punti_giocatori)
-        self.vincitore = max(punti_giocatori, key=punti_giocatori.get)
+        
+        if len(set(punti_giocatori.values())) != len(punti_giocatori.values()):
+            self.vincitore = "Pareggio"
+        else:
+            self.vincitore = max(punti_giocatori, key=punti_giocatori.get)
 
     def __repr__(self) -> str:
         return f"Gioco di Briscola con {self.numero_giocatori} giocatori"
