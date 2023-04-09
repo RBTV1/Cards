@@ -2,19 +2,27 @@ import random
 from classes import Giocatore, Mazzo, Carta, si_o_no
 from collections import defaultdict
 
+punti_briscola = {1: 11, 
+                  3: 10, 
+                  10: 4, 
+                  9: 3, 
+                  8: 2}
+
 class GiocatoreBriscola(Giocatore):
     def __init__(self, nome) -> None:
         super().__init__(nome)
         self.punti = 0
-        self.dict_punti = {1: 11, 3: 10, 10: 4, 9: 3, 8: 2}
+        self.dict_punti = punti_briscola
         self.carte_vinte = []
 
     def aggiungi_carte_vinte(self, carte_vinte: list or dict):
+        '''Aggiunge una lista o dizionario di carte al set di carte vinte da un giocatore'''
         assert len(set(carte_vinte)) == len(carte_vinte), "Una carta tra quelle vinte si ripete"
         
         self.carte_vinte += [carta for carta in carte_vinte]
 
     def conta_punti(self):
+        '''Conta i punti '''
         punti_totali = 0
         for carta in self.carte_vinte:
             try:
@@ -24,14 +32,37 @@ class GiocatoreBriscola(Giocatore):
         return punti_totali
 
 class Briscola():
+    '''Briscola
+    
+    Regole di gioco (SNAI):
+    Una volta mischiato il mazzo ogni giocatore riceve tre carte, distribuite insieme ed in senso antiorario, 
+    viene poi scoperta la prima carta del mazzo che designerà il seme di Briscola. Quest'ultima viene messa 
+    per metà sotto al restante mazzo coperto cosicchè resterà sempre visibile ai giocatori durante lo 
+    svolgimento del round e sarà l'ultima carta ad essere pescata. Una volta distribuite le carte e 
+    designato il seme di Briscola ha inizio la partita.
+    
+    Inizia il giocatore seduto alla destra di colui che ha distribuito le carte e si procede poi in senso 
+    antiorario. Ogni giocatore cercherà di aggiudicarsi la mano giocando la carta che ritiene più opportuna 
+    al fine di totalizzare il maggior numero di punti. Nella Briscola a 4 giocatori i punti vengono sommati 
+    tra i giocatori della stessa squadra. Colui che si aggiudica la mano inizierà il gioco nella mano 
+    successiva. Le regole della Briscola prevedono i seguenti criteri per aggiudicarsi una mano: Il primo 
+    giocatore a giocare una carta (detto giocatore di mano) determina con la stessa il seme di mano. 
+    I giocatori successivi non hanno alcun obbligo di giocare un particolare seme come invece avviene per 
+    giochi come il tressette. La mano è temporaneamente aggiudicata da un altro giocatore se questi posa 
+    sul tavolo una carta del seme di mano con valore di presa maggiore, o una carta del seme di Briscola 
+    anche se con valore di presa inferiore. Alla fine, quando tutti i giocatori avranno posato una carta 
+    sul tavolo, si aggiudicherà la mano colui che ha posato la carta di Briscola con valore di presa maggiore, 
+    o, in mancanza, da colui che ha giocato la carta del seme di mano con valore di presa maggiore; 
+    in mancanza di carte del seme di Briscola o di carte del seme di mano vince il primo giocatore di mano 
+    in quanto l'unico ad aver posato una carta del seme di mano. Essendo il seme di mano determinato di 
+    volta in volta dalla prima carta giocata, può coincidere col seme di Briscola ed in questo caso la mano 
+    è aggiudicata da chi gioca il seme di Briscola con valore di presa maggiore. Colui che si aggiudica la 
+    mano prende le carte giocate in quella mano e le pone coperte davanti a sé, prenderà poi una carta dal 
+    mazzo seguito dagli altri giocatori in senso antiorario.
+    '''
     def __init__(self) -> None:
         self.mazzo = Mazzo()
-        self.mazzo.assegna_punti(dict_punti = {
-            1: 11, 
-            3: 10, 
-            10: 4, 
-            9: 3, 
-            8: 2})
+        self.mazzo.assegna_punti(dict_punti=punti_briscola)
 
         self.init_giocatori()
         while input("Volete iniziare? (s/n) ").lower()[0] != 's':
@@ -49,6 +80,7 @@ class Briscola():
         print(f"Complimenti {self.vincitore}")
 
     def init_giocatori(self):
+        '''Definisci quanti giocatori giocheranno e i nomi'''
         self.giocatori = {}
         self.numero_giocatori = int(input("In quanti volete giocare?"))
         self.contro_AI = False
@@ -62,10 +94,7 @@ class Briscola():
                 "Allora nada. Ricomincia il gioco se ti va.")
             
             print("Initializing AI...")
-            self.giocatori["Giocatore"] = GiocatoreBriscola(nome="Giocatore")
             self.giocatori["AI"] = GiocatoreBriscola(nome='AI')
-
-            return None
 
         elif self.numero_giocatori == 3:
             coppe_2 = self.mazzo.togli_carta(Carta("Coppe", 2))
@@ -90,32 +119,38 @@ class Briscola():
             squadra_id = 1
 
         for i, giocatore in enumerate(range(self.numero_giocatori), start=1):
-            if self.numero_giocatori == 4 and i == 3:
-                print("Ora la squadra 2\n")
-                squadra_id = 2
+            if self.numero_giocatori == 4:
+                self.squadre[f'squadra{squadra_id}'].append(nome)
+                if i == 3:
+                    print("Ora la squadra 2\n")
+                    squadra_id = 2
             nome = input(f"Giocatore {i}: ")
+            while nome == '':
+                print("nome non valido. Inserisci un nome vero")
             self.giocatori[nome] = GiocatoreBriscola(nome=nome)
-            self.squadre[f'squadra{squadra_id}'].append(nome)
 
         print(f"\nBenvenuti: {[nome for nome in self.giocatori.keys()]}")
 
     def init_distribuisci_carte(self):
+        '''Distribuisci le carte al primo giro'''
         print("\nInizio a distribuire le carte\n")
         for i in range(3):
             self.giocatori_pescano()
 
     def pesca_briscola(self):
+        '''Pesca la briscola dal mazzo, dopo aver distribuito le carte'''
         self.carta_fondo = self.mazzo.pesca_carta()
         self.seme_briscola = self.carta_fondo.seme
         print(f"La carta sul fondo e' un {self.carta_fondo}")
         print(f"Il seme di briscola quindi e' {self.seme_briscola}\n")
 
     def check_ultimo_turno(self):
+        '''Controlla quante carte rimangono nel mazzo'''
         if len(self.mazzo.carte) == self.numero_giocatori-1:
             print("Attenzione giocatori, questo e' l'ultimo giro!")
 
     def turno(self):
-        # print(len(self.mazzo.carte))
+        '''Turno di gioco'''
         ordine_giocatori = self.set_ordine_giocatori()
         [print(self.giocatori[giocatore].nome, self.giocatori[giocatore].carte_in_mano) 
                for giocatore in ordine_giocatori]
@@ -151,6 +186,7 @@ class Briscola():
             self.giocatori_pescano(ordine_giocatori)
 
     def giocatori_pescano(self, ordine_giocatori=None):
+        '''I giocatori pescano una carta a partire dall'ultimo che ha vinto'''
         if ordine_giocatori is None:
             ordine_giocatori = self.giocatori.keys()
         for giocatore in ordine_giocatori:
@@ -160,6 +196,7 @@ class Briscola():
                 self.giocatori[giocatore].pesca_carta(self.mazzo)
 
     def chi_prende_la_mano(self, carte_giocate):
+        '''Determina chi vince una mano'''
         carta_vincente = carte_giocate[0]
         id_giocatore_vincente = 0
         for i, carta in enumerate(carte_giocate[1:], start=1):
@@ -178,12 +215,14 @@ class Briscola():
         return id_giocatore_vincente
 
     def chi_inizia(self):
+        '''Definisci chi inizia per primo a giocare in modo casuale'''
         giocatori = list(self.giocatori.keys())
         random.shuffle(giocatori)
         self.giocatore_iniziale = giocatori[0]
         print(f"\nInizia {self.giocatore_iniziale}!")
 
     def set_ordine_giocatori(self):
+        '''Definisci l'ordine iniziale dei giocatori'''
         list_giocatori = list(self.giocatori.keys())
         for id_inizio, nome in enumerate(list_giocatori):
             if nome == self.giocatore_iniziale:
@@ -192,6 +231,7 @@ class Briscola():
         return ordine_giocatori
 
     def conta_punti_giocatori(self):
+        '''Conteggio finale dei punti di ciascun giocatore'''
         punti_giocatori = {}
 
         if self.numero_giocatori == 4:
